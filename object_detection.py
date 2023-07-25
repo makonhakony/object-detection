@@ -14,15 +14,20 @@ from PIL import ImageDraw;
 from PIL import ImageFont;
 from PIL import ImageOps;
 
+import time
+
 # GPU/TPU config
 # TODO
 
 def display_image(image):
+  print("Display Image")
   fig = plt.figure(figsize=(20,15));
   plt.grid(False);
   plt.imshow(image)
+  plt.show()
 
 def load_and_resize_image(url, new_width=256, new_height=256, display=False):
+  print("Load And Resize Image")
   img = Image.open(url);
   img = ImageOps.fit(img, (new_width, new_height), Image.LANCZOS)
   img_rgb = img.convert("RGB")
@@ -42,6 +47,7 @@ def draw_bounding_box_on_image(image,
                                thickness=4,
                                display_str_list=()):
   """Adds a bounding box to an image."""
+  print("Draw Bounding Box On Image")
   draw = ImageDraw.Draw(image)
   im_width, im_height = image.size
   (left, right, top, bottom) = (xmin * im_width, xmax * im_width,
@@ -79,6 +85,7 @@ def draw_bounding_box_on_image(image,
 
 def draw_boxes(image, boxes, class_names, scores, max_boxes=10, min_score=0.1):
   """Overlay labeled boxes on an image with formatted scores and label names."""
+  print("Draw Boxes")
   colors = list(ImageColor.colormap.values())
 
   try:
@@ -107,8 +114,14 @@ def draw_boxes(image, boxes, class_names, scores, max_boxes=10, min_score=0.1):
       np.copyto(image, np.array(image_pil))
   return image
 
+def load_img(path):
+  print("Load Image")
+  img = tf.io.read_file(path)
+  img = tf.image.decode_jpeg(img, channels=3)
+  return img
 
 def run_detector(detector, path):
+  print("Run Detector")
   img = load_img(path)
 
   converted_img  = tf.image.convert_image_dtype(img, tf.float32)[tf.newaxis, ...]
@@ -129,12 +142,12 @@ def run_detector(detector, path):
   
 def main():
   # Test
-  #image = Image.open("1");
-  #image.show()
+  # image = Image.open("1")
+  # image.show()
 
   # Device Setup
   image_url = "1" #change this 
-  image_path = load_and_resize_image(image_url,256,256, True)  
+  image_path = load_and_resize_image(image_url,1280, 856, True)  
 
   module_handle = "https://tfhub.dev/google/openimages_v4/ssd/mobilenet_v2/1"
   detector = hub.load(module_handle).signatures['default']
