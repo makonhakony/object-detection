@@ -1,4 +1,3 @@
-
 import tensorflow as tf;
 import numpy as np;
 import matplotlib.pyplot as plt;
@@ -14,27 +13,66 @@ from PIL import ImageDraw;
 from PIL import ImageFont;
 from PIL import ImageOps;
 
+from picamera2 import Picamera2,Preview
+
 import time
+import os
+import sys
 
-# GPU/TPU config
-# TODO
+#Setup picamera
+IM_WIDTH = 1280
+IM_HEIGHT = 720
 
-def display_image(image):
-  print("Display Image")
-  fig = plt.figure(figsize=(20,15));
-  plt.grid(False);
-  plt.imshow(image)
-  plt.show()
+LO_WIDTH = 640
+LO_HEIGHT = 480
 
-def load_and_resize_image(url, new_width=256, new_height=256, display=False):
+def define_camera():
+  global IM_WIDTH, IM_HEIGHT, LO_WIDTH, LO_HEIGHT
+  camera = Picamera2()
+  camera.config = camera.create_preview_configuration(
+  	main={"size":(IM_WIDTH, IM_HEIGHT)},
+  	lores={"size":(LO_WIDTH, LO_HEIGHT)})
+  camera.configure(camera.config)
+
+  return camera
+
+def start_preview_until_stop(camera):
+  #camera.start_preview(Preview.QTGL)
+  camera.start()
+  count = 0
+
+  detector=load_detector()
+
+  fig = plt.figure()
+  ax = fig.add_subplot(111)
+  content = ax.imshow(np.zeros((450,600,3), dtype=np.uint8))
+  while count < 20:
+    count = count + 1
+
+    frame = camera.capture_image("main")
+    image = resize_image(frame,LO_WIDTH, LO_HEIGHT)
+    image_with_boxes = run_detector(detector,image)
+
+    print("Display Image")
+    plt.grid(False);
+    content.set_data(image_with_boxes)
+
+    plt.pause(0.1)
+  plt.close(fig)
+
+def load_detector():
+  print("Load Detector")
+  module_handle = "https://tfhub.dev/google/openimages_v4/ssd/mobilenet_v2/1"
+  detector = hub.load(module_handle).signatures['default']
+  return detector
+
+
+def resize_image(image, new_width=256, new_height=256, display=False):
   print("Load And Resize Image")
-  img = Image.open(url);
-  img = ImageOps.fit(img, (new_width, new_height), Image.LANCZOS)
+  img = ImageOps.fit(image, (new_width, new_height), Image.LANCZOS)
   img_rgb = img.convert("RGB")
   file_name="tfhub_test_img"
   img_rgb.save(file_name, format="JPEG", quality=90)
-  if display:
-    display_image(img)
   return file_name
 
 def draw_bounding_box_on_image(image,
@@ -60,7 +98,9 @@ def draw_bounding_box_on_image(image,
   # If the total height of the display strings added to the top of the bounding
   # box exceeds the top of the image, stack the strings below the bounding box
   # instead of above.
-  display_str_heights = [font.getbbox(ds)[3] for ds in display_str_list]
+  #display_str_heights = [font.getbbox(ds)[3] for ds in display_str_list]
+  print(len(display_str_list))
+  display_str_heights = [font.getsize(ds)[1] for ds in display_str_list]
   # Each display_str has a top and bottom margin of 0.05x.
   total_display_str_height = (1 + 2 * 0.05) * sum(display_str_heights)
 
@@ -70,8 +110,8 @@ def draw_bounding_box_on_image(image,
     text_bottom = top + total_display_str_height
   # Reverse list and print from bottom to top.
   for display_str in display_str_list[::-1]:
-    bbox = font.getbbox(display_str)
-    text_width, text_height = bbox[2], bbox[3]
+    bbox = font.getsize(display_str)
+    text_width, text_height = bbox[1], bbox[1]
     margin = np.ceil(0.05 * text_height)
     draw.rectangle([(left, text_bottom - text_height - 2 * margin),
                     (left + text_width, text_bottom)],
@@ -138,22 +178,14 @@ def run_detector(detector, path):
       img.numpy(), result["detection_boxes"],
       result["detection_class_entities"], result["detection_scores"])
 
-  display_image(image_with_boxes)
-  
+  return image_with_boxes
+
 def main():
-  # Test
-  # image = Image.open("1")
-  # image.show()
-
-  # Device Setup
-  image_url = "2" #change this 
-  image_path = load_and_resize_image(image_url,1280, 856, True)  
-
-  module_handle = "https://tfhub.dev/google/openimages_v4/ssd/mobilenet_v2/1"
-  detector = hub.load(module_handle).signatures['default']
-
-  # tasks
-  run_detector(detector, image_path)
+  camera = define_camera()
+  start_preview_until_stop(camera)
 
 if __name__== "__main__":
     main();
+
+
+
