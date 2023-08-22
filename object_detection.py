@@ -141,7 +141,7 @@ def run_detector(detector, path):
   
   ims = Image.fromarray(image_with_boxes)
   
-  file_name="cnn_result_person"
+  file_name="cnn_result_pre.jpg"
   ims.save(file_name, format="JPEG", quality=90)
   
 def main():
@@ -150,7 +150,7 @@ def main():
   # image.show()
 
   # Device Setup
-  image_url = "test_person" #change this 
+  image_url = "1" #change this 
   image_path = load_and_resize_image(image_url,560, 640, True)  
 
   module_handle = "https://tfhub.dev/google/openimages_v4/ssd/mobilenet_v2/1"

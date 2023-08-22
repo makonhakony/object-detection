@@ -5,6 +5,6 @@ camera = Picamera2()
 
 camera.start_preview()
 sleep(5)
-camera.capture('selfie.jpg')
+camera.capture_image('selfie.jpg')
 
 camera.stop_preview()
