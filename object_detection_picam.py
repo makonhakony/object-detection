@@ -1,6 +1,8 @@
 import tensorflow as tf;
 import numpy as np;
 import matplotlib.pyplot as plt;
+import cv2
+print(cv2.__version__)
 
 print(tf.__version__);
 print(np.__version__);
@@ -24,13 +26,13 @@ IM_WIDTH = 1280
 IM_HEIGHT = 720
 
 LO_WIDTH = 640
-LO_HEIGHT = 480
+LO_HEIGHT = 560
 
 def define_camera():
   global IM_WIDTH, IM_HEIGHT, LO_WIDTH, LO_HEIGHT
   camera = Picamera2()
   camera.config = camera.create_preview_configuration(
-  	main={"size":(IM_WIDTH, IM_HEIGHT)},
+  	main={"size":(1400, 900)},
   	lores={"size":(LO_WIDTH, LO_HEIGHT)})
   camera.configure(camera.config)
 
@@ -38,26 +40,42 @@ def define_camera():
 
 def start_preview_until_stop(camera):
   #camera.start_preview(Preview.QTGL)
+  
+  
   camera.start()
   count = 0
 
-  detector=load_detector()
+  #detector=load_detector()
+  hog = cv2.HOGDescriptor()
+
+  hog.setSVMDetector(cv2.HOGDescriptor_getDefaultPeopleDetector())
 
   fig = plt.figure()
   ax = fig.add_subplot(111)
-  content = ax.imshow(np.zeros((450,600,3), dtype=np.uint8))
+  content = ax.imshow(np.zeros((LO_HEIGHT,LO_WIDTH,3), dtype=np.uint8))
   while count < 20:
     count = count + 1
 
     frame = camera.capture_image("main")
-    image = resize_image(frame,LO_WIDTH, LO_HEIGHT)
-    image_with_boxes = run_detector(detector,image)
+    image = resize_image(frame,LO_HEIGHT, LO_WIDTH)
+    #image = np.ascontiguousarray(image)
+    
+    cvimg = cv2.imread(image)
+    rgb_img = cv2.cvtColor(cvimg, cv2.COLOR_BGR2RGB)
+    
+    foundLocations, weight = hog.detectMultiScale(rgb_img)
+    #print(foundLocations)
+    for (x,y,w,h) in foundLocations:
+      cv2.rectangle(rgb_img, (x,y), (x+w, y+h), (0, 255, 0), 2)
+    #image_with_boxes = run_detector(detector,image)
 
     print("Display Image")
     plt.grid(False);
-    content.set_data(image_with_boxes)
+    #content.set_data(image_with_boxes)
+    content.set_data(rgb_img)
+    
 
-    plt.pause(0.1)
+    plt.pause(0.01)
   plt.close(fig)
 
 def load_detector():
@@ -67,7 +85,7 @@ def load_detector():
   return detector
 
 
-def resize_image(image, new_width=256, new_height=256, display=False):
+def resize_image(image, new_width, new_height, display=False):
   print("Load And Resize Image")
   img = ImageOps.fit(image, (new_width, new_height), Image.LANCZOS)
   img_rgb = img.convert("RGB")
@@ -99,7 +117,6 @@ def draw_bounding_box_on_image(image,
   # box exceeds the top of the image, stack the strings below the bounding box
   # instead of above.
   #display_str_heights = [font.getbbox(ds)[3] for ds in display_str_list]
-  print(len(display_str_list))
   display_str_heights = [font.getsize(ds)[1] for ds in display_str_list]
   # Each display_str has a top and bottom margin of 0.05x.
   total_display_str_height = (1 + 2 * 0.05) * sum(display_str_heights)
@@ -123,7 +140,12 @@ def draw_bounding_box_on_image(image,
     text_bottom -= text_height - 2 * margin
 
 
-def draw_boxes(image, boxes, class_names, scores, max_boxes=10, min_score=0.1):
+def draw_boxes(image,
+               boxes, 
+               class_names, 
+               scores, 
+               max_boxes=10, 
+               min_score=0.1):
   """Overlay labeled boxes on an image with formatted scores and label names."""
   print("Draw Boxes")
   colors = list(ImageColor.colormap.values())
@@ -169,14 +191,19 @@ def run_detector(detector, path):
   result = detector(converted_img)
   end_time = time.time()
 
-  result = {key:value.numpy() for key,value in result.items()}
+  for key,value in result.items():
+    print(key,value.numpy())
+  result = {key:value.numpy() for key,value in result.items() if value["detection_class_labels"] == 15}
 
   print("Found %d objects." % len(result["detection_scores"]))
   print("Inference time: ", end_time-start_time)
 
   image_with_boxes = draw_boxes(
-      img.numpy(), result["detection_boxes"],
-      result["detection_class_entities"], result["detection_scores"])
+      img.numpy(), 
+      result["detection_boxes"],
+      result["detection_class_entities"],
+      result["detection_scores"]
+      )
 
   return image_with_boxes
 

@@ -33,8 +33,7 @@ def load_and_resize_image(url, new_width=256, new_height=256, display=False):
   img_rgb = img.convert("RGB")
   file_name="tfhub_test_img"
   img_rgb.save(file_name, format="JPEG", quality=90)
-  if display:
-    display_image(img)
+  
   return file_name
 
 def draw_bounding_box_on_image(image,
@@ -60,7 +59,7 @@ def draw_bounding_box_on_image(image,
   # If the total height of the display strings added to the top of the bounding
   # box exceeds the top of the image, stack the strings below the bounding box
   # instead of above.
-  display_str_heights = [font.getbbox(ds)[3] for ds in display_str_list]
+  display_str_heights = [font.getsize(ds)[1] for ds in display_str_list]
   # Each display_str has a top and bottom margin of 0.05x.
   total_display_str_height = (1 + 2 * 0.05) * sum(display_str_heights)
 
@@ -70,8 +69,8 @@ def draw_bounding_box_on_image(image,
     text_bottom = top + total_display_str_height
   # Reverse list and print from bottom to top.
   for display_str in display_str_list[::-1]:
-    bbox = font.getbbox(display_str)
-    text_width, text_height = bbox[2], bbox[3]
+    bbox = font.getsize(display_str)
+    text_width, text_height = bbox[1], bbox[1]
     margin = np.ceil(0.05 * text_height)
     draw.rectangle([(left, text_bottom - text_height - 2 * margin),
                     (left + text_width, text_bottom)],
@@ -137,8 +136,13 @@ def run_detector(detector, path):
   image_with_boxes = draw_boxes(
       img.numpy(), result["detection_boxes"],
       result["detection_class_entities"], result["detection_scores"])
-
+  
   display_image(image_with_boxes)
+  
+  ims = Image.fromarray(image_with_boxes)
+  
+  file_name="cnn_result_person"
+  ims.save(file_name, format="JPEG", quality=90)
   
 def main():
   # Test
@@ -146,8 +150,8 @@ def main():
   # image.show()
 
   # Device Setup
-  image_url = "2" #change this 
-  image_path = load_and_resize_image(image_url,1280, 856, True)  
+  image_url = "test_person" #change this 
+  image_path = load_and_resize_image(image_url,560, 640, True)  
 
   module_handle = "https://tfhub.dev/google/openimages_v4/ssd/mobilenet_v2/1"
   detector = hub.load(module_handle).signatures['default']
